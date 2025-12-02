@@ -4,15 +4,17 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "Pedro Pathing Autonomous", group = "Autonomous")
+@Autonomous(name = "BlueLeave", group = "Autonomous")
 @Configurable // Panels
 public class BlueFlushLeaveShootIntakeShoot extends OpMode {
 
@@ -21,17 +23,32 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
     private int pathState; // Current autonomous path state (state machine)
     private Paths paths; // Paths defined in the Paths class
 
+    private DcMotor shooter;
+    private DcMotor intake;
+
+    // Pedro timer (simple)
+    private long stateStartTime;
+
+
     @Override
     public void init() {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
+        shooter = hardwareMap.get(DcMotor.class, "Shooter");
+        intake  = hardwareMap.get(DcMotor.class, "Intake");
+
+
+
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(72, 8, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(32, 135, Math.toRadians(90)));
 
         paths = new Paths(follower); // Build paths
 
         panelsTelemetry.debug("Status", "Initialized");
         panelsTelemetry.update(telemetry);
+
+        stateStartTime = System.currentTimeMillis();   // start the timer
+
     }
 
     @Override
@@ -46,36 +63,48 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
         panelsTelemetry.debug("Heading", follower.getPose().getHeading());
         panelsTelemetry.update(telemetry);
     }
+    private double getStateTime() {
+        return (System.currentTimeMillis() - stateStartTime) / 1000.0;
+    }
+
+    private void nextState() {
+        pathState++;
+        stateStartTime = System.currentTimeMillis(); // reset timer
+    }
 
     public static class Paths {
 
-        public PathChain BlueToShoot;
-        public PathChain ShootToRow1;
-        public PathChain Row1ToShoot;
+        public PathChain StartToShoot;
+        public PathChain ShootToIntake;
+        public PathChain IntakeBackToShoot;
 
         public Paths(Follower follower) {
-            BlueToShoot = follower
+            StartToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(72.000, 8.000), new Pose(72.000, 44.000))
+                            new BezierLine(new Pose(32.000, 135.000), new Pose(59.500, 84.500))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(135))
+                    .setVelocityConstraint(25)
                     .build();
 
-            ShootToRow1 = follower
+            ShootToIntake = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(72.000, 44.000), new Pose(50.000, 44.000))
+                            new BezierLine(new Pose(59.500, 84.500), new Pose(20.071, 84.756))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(90))
+                    .setTangentHeadingInterpolation()
+                    .setVelocityConstraint(25)
                     .build();
 
-            Row1ToShoot = follower
+            IntakeBackToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(50.000, 44.000), new Pose(72.000, 8.000))
+                            new BezierLine(new Pose(20.071, 84.756), new Pose(59.500, 84.500))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(90))
+                    .setConstantHeadingInterpolation(Math.toRadians(135))
+
+                    .setVelocityConstraint(25)
                     .build();
         }
     }
@@ -86,52 +115,71 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
         // Refer to the Pedro Pathing Docs (Auto Example) for an example state machine
 
 
-            switch (pathState) {
-                case 0:
-                    // Start first path: BlueToShoot
-                    follower.followPath(paths.BlueToShoot);
-                    pathState++;
-                    break;
 
-                case 1:
-                    // Wait for BlueToShoot to finish
-                    if (!follower.isBusy()) {
-                        pathState++;
-                    }
-                    break;
+        switch (pathState) {
+            case 0:
+                // Start path 1
+                follower.followPath(paths.StartToShoot);
+                nextState();
+                break;
 
-                case 2:
-                    // Start second path: ShootToRow1
-                    follower.followPath(paths.ShootToRow1);
-                    pathState++;
-                    break;
+            case 1:
+                // While driving to shoot:
+                // Example motor behavior
+                shooter.setPower(.15);  // preload shooter
+                intake.setPower(0);
 
-                case 3:
-                    // Wait for ShootToRow1 to finish
-                    if (!follower.isBusy()) {
-                        pathState++;
-                    }
-                    break;
+                if (!follower.isBusy()) nextState();
+                break;
 
-                case 4:
-                    // Start third path: Row1ToShoot
-                    follower.followPath(paths.Row1ToShoot);
-                    pathState++;
-                    break;
+            case 2:
+                // Start path 2
+                shooter.setPower(.6);   // stop shooter if needed
+                intake.setPower(.5);
 
-                case 5:
-                    // Wait for Row1ToShoot to finish
-                    if (!follower.isBusy()) {
-                        pathState++;
-                    }
-                    break;
+                if(getStateTime() > 5){
+                    shooter.setPower(0);
+                    intake.setPower(.5);
+                    follower.followPath(paths.ShootToIntake);
+                    nextState();
 
-                case 6:
-                    // All paths done, stop the robot
-                    break;
-            }
+                }
 
-            return pathState;
+                break;
 
+            case 3:
+                // Running ShootToRow1
+
+                    intake.setPower(0.5); // example timed action
+
+                if (!follower.isBusy()) nextState();
+                break;
+
+            case 4:
+                // Start path 3
+                intake.setPower(0);
+                follower.followPath(paths.IntakeBackToShoot);
+                nextState();
+                break;
+
+            case 5:
+                // Running Row1ToShoot
+                if (!follower.isBusy()) nextState();
+                break;
+
+            case 6:
+                // All Done
+
+                if(getStateTime() < 4){
+                shooter.setPower(0.2);
+                intake.setPower(0.2);}
+                else {
+                    shooter.setPower(0);
+                    intake.setPower(0);
+                }
+                break;
+        }
+
+        return pathState;
     }
 }
