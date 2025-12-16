@@ -11,6 +11,8 @@ import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
@@ -23,20 +25,31 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
     private int pathState; // Current autonomous path state (state machine)
     private Paths paths; // Paths defined in the Paths class
 
-    private DcMotor shooter;
+    private DcMotorEx shooter;
     private DcMotor intake;
 
     // Pedro timer (simple)
     private long stateStartTime;
+
+    private int shotCount = 0;
+    boolean artifactWasShot = false;
+    boolean canMove = false;
+
 
 
     @Override
     public void init() {
         panelsTelemetry = PanelsTelemetry.INSTANCE.getTelemetry();
 
-        shooter = hardwareMap.get(DcMotor.class, "Shooter");
+        shooter = hardwareMap.get(DcMotorEx.class, "Shooter");
         intake  = hardwareMap.get(DcMotor.class, "Intake");
 
+        shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        shooter.setPIDFCoefficients(
+                DcMotor.RunMode.RUN_USING_ENCODER,
+                new PIDFCoefficients(35, 0, 5, 14)
+        );
 
 
         follower = Constants.createFollower(hardwareMap);
@@ -63,10 +76,37 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
         panelsTelemetry.debug("Heading", follower.getPose().getHeading());
         panelsTelemetry.update(telemetry);
     }
+    private void shootAndThenIntake(double velocity, double tolerance){
+        shooter.setVelocity(velocity);
+
+        if(Math.abs(shooter.getVelocity() - velocity) <= tolerance){
+        intake.setPower(.6);
+         artifactWasShot = true;
+        }
+        else{
+            intake.setPower(0);
+            if(artifactWasShot == true){
+                shotCount++;
+                artifactWasShot = false;
+            }
+            if(shotCount == 3){
+                canMove = true;
+            }
+        }
+
+    }
     private double getStateTime() {
         return (System.currentTimeMillis() - stateStartTime) / 1000.0;
     }
 
+
+    public void setShooterPower(double power) {
+        shooter.setPower(power);
+    }
+
+    public void setIntakePower(double power) {
+        intake.setPower(power);
+    }
     private void nextState() {
         pathState++;
         stateStartTime = System.currentTimeMillis(); // reset timer
@@ -85,7 +125,6 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
                             new BezierLine(new Pose(32.000, 135.000), new Pose(59.500, 84.500))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(135))
-                    .setVelocityConstraint(25)
                     .build();
 
             ShootToIntake = follower
@@ -126,7 +165,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 1:
                 // While driving to shoot:
                 // Example motor behavior
-                shooter.setPower(.15);  // preload shooter
+                shooter.setPower(.60);  // preload shooter
                 intake.setPower(0);
 
                 if (!follower.isBusy()) nextState();
@@ -134,11 +173,12 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
 
             case 2:
                 // Start path 2
-                shooter.setPower(.6);   // stop shooter if needed
-                intake.setPower(.5);
+                shootAndThenIntake(1800, 0.03);
 
-                if(getStateTime() > 5){
-                    shooter.setPower(0);
+
+
+                if(getStateTime() > 9){
+                    shooter.setVelocity(-1000);
                     intake.setPower(.5);
                     follower.followPath(paths.ShootToIntake);
                     nextState();
@@ -150,7 +190,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 3:
                 // Running ShootToRow1
 
-                    intake.setPower(0.5); // example timed action
+                    intake.setPower(0.7); // example timed action
 
                 if (!follower.isBusy()) nextState();
                 break;
@@ -170,13 +210,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 6:
                 // All Done
 
-                if(getStateTime() < 4){
-                shooter.setPower(0.2);
-                intake.setPower(0.2);}
-                else {
-                    shooter.setPower(0);
-                    intake.setPower(0);
-                }
+                shootAndThenIntake(2200, 0.03);
                 break;
         }
 
