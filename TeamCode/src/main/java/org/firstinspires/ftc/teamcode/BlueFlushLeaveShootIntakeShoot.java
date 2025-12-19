@@ -165,7 +165,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 1:
                 // While driving to shoot:
                 // Example motor behavior
-                shooter.setPower(.60);  // preload shooter
+                shooter.setPower(.750);  // preload shooter
                 intake.setPower(0);
 
                 if (!follower.isBusy()) nextState();
@@ -173,13 +173,13 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
 
             case 2:
                 // Start path 2
-                shootAndThenIntake(1800, 0.03);
+                shootAndThenIntake(1300, 0.03);
 
 
 
                 if(getStateTime() > 9){
                     shooter.setVelocity(-1000);
-                    intake.setPower(.5);
+                    intake.setPower(.75);
                     follower.followPath(paths.ShootToIntake);
                     nextState();
 
@@ -190,7 +190,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 3:
                 // Running ShootToRow1
 
-                    intake.setPower(0.7); // example timed action
+                    intake.setPower(0.75); // example timed action
 
                 if (!follower.isBusy()) nextState();
                 break;
@@ -210,7 +210,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 6:
                 // All Done
 
-                shootAndThenIntake(2200, 0.03);
+                shootAndThenIntake(1300, 0.03);
                 break;
         }
 
