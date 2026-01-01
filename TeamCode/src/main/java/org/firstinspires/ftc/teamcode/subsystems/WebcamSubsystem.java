@@ -28,11 +28,11 @@ public class WebcamSubsystem {
     // Auto-align PID gains
     private double forwardGain = 0.02; // forward/backward
     private double strafeGain = 0.015; // left/right
-    private double turnGain = 0.01;    // rotation
+    private double turnGain = 0.0431;    // rotation
 
     private double maxForward = 0.5;
     private double maxStrafe = 0.5;
-    private double maxTurn = 0.3;
+    private double maxTurn = 0.63;
 
     private double desiredDistance = 12.0; // inches
 
@@ -118,6 +118,15 @@ public class WebcamSubsystem {
         double turnSpeed = Range.clip(bearingError * turnGain, -maxTurn, maxTurn);
 
         return new double[]{xSpeed, ySpeed, turnSpeed};
+    }
+
+    public double[] getTurnSpeeds(){
+
+        double bearingError = getTagBearing();               // rotation
+
+        //just get turn speed to align with tag
+        double turnSpeed = Range.clip(bearingError * turnGain, -maxTurn, maxTurn);
+        return new double[]{0,0, turnSpeed};
     }
 
 

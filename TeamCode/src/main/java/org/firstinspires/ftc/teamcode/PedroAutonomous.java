@@ -57,25 +57,29 @@ public class PedroAutonomous extends OpMode {
             BlueToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(72.000, 8.000), new Pose(72.000, 44.000))
-                    )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(135))
+                            new BezierCurve(
+                                    new Pose(72.000, 8.000),
+                                    new Pose(37.844, 44.010),
+                                    new Pose(112.322, 56.343),
+                                    new Pose(72, 94)
+                            ))
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(270))
                     .build();
 
             ShootToRow1 = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(72.000, 44.000), new Pose(50.000, 44.000))
+                            new BezierLine(new Pose(72.000, 94), new Pose(72, 8))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(90))
+                    .setLinearHeadingInterpolation(Math.toRadians(270), Math.toRadians(90))
                     .build();
 
             Row1ToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(50.000, 44.000), new Pose(72.000, 8.000))
+                            new BezierLine(new Pose(72, 8), new Pose(72.000, 94))
                     )
-                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(90))
+                    .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(270))
                     .build();
         }
     }
@@ -89,6 +93,7 @@ public class PedroAutonomous extends OpMode {
             switch (pathState) {
                 case 0:
                     // Start first path: BlueToShoot
+
                     follower.followPath(paths.BlueToShoot);
                     pathState++;
                     break;
@@ -102,7 +107,7 @@ public class PedroAutonomous extends OpMode {
 
                 case 2:
                     // Start second path: ShootToRow1
-                    follower.followPath(paths.ShootToRow1);
+                    follower.followPath(paths.ShootToRow1, 0.85, false);
                     pathState++;
                     break;
 
@@ -115,7 +120,7 @@ public class PedroAutonomous extends OpMode {
 
                 case 4:
                     // Start third path: Row1ToShoot
-                    follower.followPath(paths.Row1ToShoot);
+                    follower.followPath(paths.Row1ToShoot, 0.75, false);
                     pathState++;
                     break;
 

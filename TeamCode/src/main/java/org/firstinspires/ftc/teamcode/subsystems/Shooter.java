@@ -10,12 +10,12 @@ public class Shooter {
 
     private DcMotorEx shooter;
 
-    public static double kP = 35;
+    public static double kP = 36.5;
     public static double kI = 0;
-    public static double kD = 5;
-    public static double kF = 14;
+    public static double kD = 0;
+    public static double kF = 14.32;
 
-    public static double variableShootSpeed = 2000;
+    public static double variableShootSpeed = 1200;
 
 
     public void init(HardwareMap hardwareMap) {
@@ -37,6 +37,8 @@ public class Shooter {
     }
 
     public void variableShoot() {
+
+
         shooter.setVelocity(variableShootSpeed);
     }
 

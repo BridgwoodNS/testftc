@@ -4,7 +4,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierCurve;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
@@ -16,9 +15,9 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 
-@Autonomous(name = "BlueLeave", group = "Autonomous")
+@Autonomous(name = "BlueOneRow", group = "Autonomous")
 @Configurable // Panels
-public class BlueFlushLeaveShootIntakeShoot extends OpMode {
+public class BlueOneRow extends OpMode {
 
     private TelemetryManager panelsTelemetry; // Panels Telemetry instance
     public Follower follower; // Pedro Pathing follower instance
@@ -48,12 +47,12 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
 
         shooter.setPIDFCoefficients(
                 DcMotor.RunMode.RUN_USING_ENCODER,
-                new PIDFCoefficients(35, 0, 5, 14)
+                new PIDFCoefficients(36.5, 0, 0, 14.32)
         );
 
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(32, 135, Math.toRadians(90)));
+        follower.setStartingPose(new Pose(33, 134.5, Math.toRadians(90)));
 
         paths = new Paths(follower); // Build paths
 
@@ -80,7 +79,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
         shooter.setVelocity(velocity);
 
         if(Math.abs(shooter.getVelocity() - velocity) <= tolerance){
-        intake.setPower(.6);
+        intake.setPower(.76);
          artifactWasShot = true;
         }
         else{
@@ -88,6 +87,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             if(artifactWasShot == true){
                 shotCount++;
                 artifactWasShot = false;
+                telemetry.addData("Shot Count", shotCount);
             }
             if(shotCount == 3){
                 canMove = true;
@@ -115,36 +115,61 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
     public static class Paths {
 
         public PathChain StartToShoot;
+
+        public PathChain LineUpIntake;
         public PathChain ShootToIntake;
         public PathChain IntakeBackToShoot;
+
+        public PathChain ChillOffLine;
 
         public Paths(Follower follower) {
             StartToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(32.000, 135.000), new Pose(59.500, 84.500))
+                            new BezierLine(new Pose(33.000, 134.5), new Pose(59.500, 84.500))
                     )
                     .setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(135))
                     .build();
 
+            LineUpIntake = follower
+                    .pathBuilder()
+                    .addPath(
+                            new BezierLine(new Pose(59.500, 84.500),new Pose(52.5, 70.5))
+
+                    )
+                    .setLinearHeadingInterpolation(Math.toRadians(135), Math.toRadians(180))
+                    .build();
+
+
             ShootToIntake = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(59.500, 84.500), new Pose(20.071, 84.756))
+                            new BezierLine(new Pose(52.500, 70.5), new Pose(11.5, 70.5))
                     )
-                    .setTangentHeadingInterpolation()
-                    .setVelocityConstraint(25)
+                    .setConstantHeadingInterpolation(Math.toRadians(180))
+
                     .build();
 
             IntakeBackToShoot = follower
                     .pathBuilder()
                     .addPath(
-                            new BezierLine(new Pose(20.071, 84.756), new Pose(59.500, 84.500))
+                            new BezierLine(new Pose(11.5, 70.5), new Pose(59.500, 84.500))
                     )
                     .setConstantHeadingInterpolation(Math.toRadians(135))
-
-                    .setVelocityConstraint(25)
                     .build();
+
+
+            ChillOffLine = follower
+                    .pathBuilder()
+                    .addPath(
+                            new BezierLine(
+                                    new Pose(59.500, 84.500),
+                                    new Pose(60, 120))
+                            )
+                    .setConstantHeadingInterpolation(Math.toRadians(135))
+                    .build();
+
+
         }
     }
 
@@ -165,7 +190,7 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
             case 1:
                 // While driving to shoot:
                 // Example motor behavior
-                shooter.setPower(.750);  // preload shooter
+                shooter.setVelocity(1200);  // preload shooter
                 intake.setPower(0);
 
                 if (!follower.isBusy()) nextState();
@@ -173,14 +198,19 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
 
             case 2:
                 // Start path 2
-                shootAndThenIntake(1300, 0.03);
+                shootAndThenIntake(1200, 21);
 
+                if(getStateTime() > 6.5){
 
+                    intake.setPower(.7);
 
-                if(getStateTime() > 9){
-                    shooter.setVelocity(-1000);
-                    intake.setPower(.75);
-                    follower.followPath(paths.ShootToIntake);
+                }
+
+                if(getStateTime() > 8 ){
+                    shooter.setVelocity(-800);
+                    canMove = false;
+                    intake.setPower(.7);
+                    follower.followPath(paths.LineUpIntake);
                     nextState();
 
                 }
@@ -188,29 +218,64 @@ public class BlueFlushLeaveShootIntakeShoot extends OpMode {
                 break;
 
             case 3:
-                // Running ShootToRow1
-
-                    intake.setPower(0.75); // example timed action
+                //Running line
+                intake.setPower(0.67);
+                shooter.setVelocity(-1200);
 
                 if (!follower.isBusy()) nextState();
                 break;
 
             case 4:
-                // Start path 3
-                intake.setPower(0);
-                follower.followPath(paths.IntakeBackToShoot);
+                shooter.setVelocity(-1400);
+
+                intake.setPower(.6);
+                follower.setMaxPower(0.3);
+                follower.followPath(paths.ShootToIntake);
                 nextState();
                 break;
 
+
             case 5:
-                // Running Row1ToShoot
+                // Running ShootToRow1
+
+                    intake.setPower(0.7); // example timed action
+
                 if (!follower.isBusy()) nextState();
                 break;
 
             case 6:
+                // Start path 3
+                intake.setPower(0);
+                follower.setMaxPower(.7);
+                follower.followPath(paths.IntakeBackToShoot);
+                nextState();
+                break;
+
+            case 7:
+                // Running Row1ToShoot
+                if (!follower.isBusy()) nextState();
+                //pre run shooter
+                shooter.setVelocity(1200);
+                break;
+
+            case 8:
                 // All Done
 
-                shootAndThenIntake(1300, 0.03);
+                shootAndThenIntake(1200, 21);
+
+                if(getStateTime() > 6){
+                    shooter.setVelocity(0);
+                    intake.setPower(0);
+
+                    follower.followPath(paths.ChillOffLine,0.5,true);
+                    nextState();
+
+                }
+
+
+
+
+
                 break;
         }
 

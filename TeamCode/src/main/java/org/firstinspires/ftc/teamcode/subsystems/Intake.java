@@ -7,8 +7,8 @@ public class Intake {
 
     private DcMotor intake;
 
-    double intakeSpeed = 0.75;
-    double outakeSpeed = -0.5;
+    double intakeSpeed = 0.85;
+    double outakeSpeed = -0.65;
 
 
     public void init(HardwareMap hardwareMap) {
